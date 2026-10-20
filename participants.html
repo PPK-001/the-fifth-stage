@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Участники — Пятая стадия</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background: #121212; color: #fff; text-align: center; padding: 40px 20px; margin: 0; }
+        h1 { color: #ff4757; }
+        .wrap { max-width: 900px; margin: 0 auto; }
+        .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; margin: 30px 0; }
+        .member { background: #1e1e1e; border: 2px solid #333; border-radius: 10px; overflow: hidden; text-align: left; }
+        .member img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; }
+        .member .name { font-weight: bold; color: #70a1ff; margin: 10px 10px 2px; }
+        .member .caption { font-size: 13px; color: #bbb; margin: 0 10px 12px; }
+        .back-link { display: inline-block; margin-top: 20px; color: #888; text-decoration: none; }
+        .back-link:hover { color: #fff; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <h1>Участники проекта</h1>
+    <div class="gallery" id="members">Загрузка...</div>
+    <a href="index.html" class="back-link">← Вернуться на главную</a>
+</div>
+
+<script>
+    const SUPABASE_URL = "https://lochgdhgcpqpmbcgmdvy.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_G0sF7IL1XrCqf4Wad0bjCQ_1hCOCWPw";
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function loadMembers() {
+        const box = document.getElementById('members');
+        const { data, error } = await client
+            .from('participants')
+            .select('*')
+            .order('created_at', { ascending: true });
+
+        box.innerHTML = "";
+        if (error) {
+            console.error(error);
+            box.style.display = 'block';
+            box.innerText = "Не удалось загрузить список.";
+            return;
+        }
+        if (!data.length) {
+            box.style.display = 'block';
+            box.innerText = "Скоро здесь появятся участники.";
+            return;
+        }
+        data.forEach(p => {
+            const card = document.createElement('div');
+            card.className = 'member';
+
+            const img = document.createElement('img');
+            img.src = p.image_url;
+            img.alt = p.name;
+
+            const n = document.createElement('div');
+            n.className = 'name';
+            n.textContent = p.name;
+
+            card.append(img, n);
+
+            if (p.caption) {
+                const c = document.createElement('div');
+                c.className = 'caption';
+                c.textContent = p.caption;
+                card.appendChild(c);
+            }
+            box.appendChild(card);
+        });
+    }
+    loadMembers();
+</script>
+</body>
+</html>
