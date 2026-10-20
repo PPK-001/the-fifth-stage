@@ -10,6 +10,7 @@
         body { font-family: Arial, sans-serif; background: #121212; color: #fff; padding: 40px 20px; }
         .container { max-width: 600px; margin: 0 auto; background: #1e1e1e; padding: 30px; border-radius: 10px; }
         h1 { color: #ff4757; text-align: center; }
+        h2 { color: #70a1ff; margin-top: 40px; border-top: 1px solid #333; padding-top: 20px; }
         label { display: block; margin-top: 15px; font-size: 14px; color: #bbb; }
         input, textarea { width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #333; background: #2b2b2b; color: #fff; font-size: 15px; box-sizing: border-box; }
         textarea { height: 120px; resize: vertical; }
@@ -18,6 +19,8 @@
         .small-btn { width: auto; padding: 6px 12px; margin: 0; font-size: 13px; background: #444; }
         #msg { margin-top: 15px; font-weight: bold; text-align: center; }
         .post { background: #252525; padding: 12px; border-radius: 6px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .post img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; }
+        .post .info { flex: 1; display: flex; align-items: center; gap: 10px; }
         a { color: #888; }
         .hidden { display: none; }
     </style>
@@ -35,8 +38,9 @@
         <button type="submit">Войти</button>
     </form>
 
-    <!-- Загрузка -->
     <div id="adminBox" class="hidden">
+
+        <!-- Новости -->
         <form id="postForm">
             <label>Заголовок:</label>
             <input type="text" id="title" required>
@@ -46,13 +50,28 @@
             <input type="file" id="image" accept="image/*">
             <label>Файл для скачивания (необязательно):</label>
             <input type="file" id="file">
-            <button type="submit">Опубликовать</button>
+            <button type="submit">Опубликовать новость</button>
         </form>
 
-        <h3>Опубликованное</h3>
+        <h3>Опубликованные новости</h3>
         <div id="postList"></div>
 
-        <button class="small-btn" id="logoutBtn" style="margin-top:20px">Выйти</button>
+        <!-- Участники -->
+        <h2>Участники проекта</h2>
+        <form id="partForm">
+            <label>Имя / ник участника:</label>
+            <input type="text" id="partName" required>
+            <label>Подпись (необязательно):</label>
+            <input type="text" id="partCaption" placeholder="Например: озвучка, тестирование, арт...">
+            <label>Изображение:</label>
+            <input type="file" id="partImage" accept="image/*" required>
+            <button type="submit">Добавить участника</button>
+        </form>
+
+        <h3>Добавленные участники</h3>
+        <div id="partList"></div>
+
+        <button class="small-btn" id="logoutBtn" style="margin-top:30px">Выйти</button>
     </div>
 
     <div id="msg"></div>
@@ -68,6 +87,8 @@
     const adminBox = document.getElementById('adminBox');
     const postForm = document.getElementById('postForm');
     const postList = document.getElementById('postList');
+    const partForm = document.getElementById('partForm');
+    const partList = document.getElementById('partList');
     const msg = document.getElementById('msg');
 
     function setMsg(text, color) { msg.style.color = color; msg.innerText = text; }
@@ -75,7 +96,7 @@
     function showAdmin(isIn) {
         loginForm.classList.toggle('hidden', isIn);
         adminBox.classList.toggle('hidden', !isIn);
-        if (isIn) loadPosts();
+        if (isIn) { loadPosts(); loadParticipants(); }
     }
 
     async function init() {
@@ -99,6 +120,7 @@
         showAdmin(false);
     });
 
+    // ---------- Новости ----------
     postForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         setMsg("Загрузка...", "yellow");
@@ -159,6 +181,61 @@
             };
             row.append(span, del);
             postList.appendChild(row);
+        });
+    }
+
+    // ---------- Участники ----------
+    partForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        setMsg("Загрузка...", "yellow");
+
+        const img = document.getElementById('partImage').files[0];
+        if (!img) { setMsg("Выбери изображение", "#ff4757"); return; }
+
+        const ext = img.name.split('.').pop().toLowerCase();
+        const path = "participant-" + Date.now() + "." + ext;
+        const { error: upErr } = await client.storage.from('post-images').upload(path, img);
+        if (upErr) { setMsg("Ошибка загрузки картинки: " + upErr.message, "#ff4757"); return; }
+        const imageUrl = client.storage.from('post-images').getPublicUrl(path).data.publicUrl;
+
+        const { error } = await client.from('participants').insert([{
+            name: document.getElementById('partName').value.trim(),
+            caption: document.getElementById('partCaption').value.trim(),
+            image_url: imageUrl
+        }]);
+
+        if (error) { setMsg("Ошибка: " + error.message, "#ff4757"); return; }
+        setMsg("Участник добавлен!", "#2ed573");
+        partForm.reset();
+        loadParticipants();
+    });
+
+    async function loadParticipants() {
+        const { data, error } = await client.from('participants').select('*').order('created_at', { ascending: false });
+        partList.innerHTML = "";
+        if (error) { setMsg("Ошибка: " + error.message, "#ff4757"); return; }
+        data.forEach(p => {
+            const row = document.createElement('div');
+            row.className = 'post';
+
+            const info = document.createElement('div');
+            info.className = 'info';
+            const img = document.createElement('img');
+            img.src = p.image_url;
+            const span = document.createElement('span');
+            span.textContent = p.name;
+            info.append(img, span);
+
+            const del = document.createElement('button');
+            del.className = 'small-btn';
+            del.textContent = 'Удалить';
+            del.onclick = async () => {
+                if (!confirm('Удалить «' + p.name + '»?')) return;
+                await client.from('participants').delete().eq('id', p.id);
+                loadParticipants();
+            };
+            row.append(info, del);
+            partList.appendChild(row);
         });
     }
 </script>
