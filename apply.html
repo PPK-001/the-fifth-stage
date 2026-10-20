@@ -97,8 +97,8 @@
     </div>
 
     <script>
-        const SUPABASE_URL = "https://lochgdhgcpqpmbcgmdvy.supabase.co"; 
-        const SUPABASE_KEY = "sb_publishable_G0sF7IL1XrCqf4Wad0bjCQ_1hCOCWPw"; 
+        const SUPABASE_URL = "https://lochgdhgcpqpmbcgmdvy.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_G0sF7IL1XrCqf4Wad0bjCQ_1hCOCWPw";
 
         const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -107,12 +107,22 @@
         const role = urlParams.get('role') || 'player';
         const formFields = document.getElementById('formFields');
 
+        // Поле Telegram одинаковое для всех ролей
+        const telegramField = `
+            <label>Твой Telegram (чтобы я мог с тобой связаться):</label>
+            <input type="text" id="contact" placeholder="@username"
+                   pattern="@?[A-Za-z0-9_]{5,32}"
+                   title="Формат: @username (латиница, цифры, _; от 5 символов)" required>
+        `;
+
         if (role === 'streamer') {
             formFields.innerHTML = `
                 <p style="color: #70a1ff; font-weight: bold; margin-форма: 15px 0;">Анкета для Стримеров</p>
-                
+
                 <label>Ник/Псевдоним:</label>
                 <input type="text" id="username" required>
+
+                ${telegramField}
 
                 <label>Платформа где стримите:</label>
                 <input type="text" id="platform" placeholder="Twitch, YouTube, Trovo..." required>
@@ -132,18 +142,15 @@
                     <option value="Да">Да</option>
                     <option value="Нет">Нет</option>
                 </select>
-
-                <input type="hidden" id="contact" value="Стример (см. платформу)">
             `;
         } else {
             formFields.innerHTML = `
                 <p style="color: #ff4757; font-weight: bold;">Анкета участника</p>
-                
+
                 <label>Твоё имя / Никнейм:</label>
                 <input type="text" id="username" required>
 
-                <label>Твой Telegram / Discord / Ссылка на связь:</label>
-                <input type="text" id="contact" required>
+                ${telegramField}
             `;
         }
 
@@ -155,27 +162,27 @@
             messageDiv.style.color = "yellow";
             messageDiv.innerText = "Отправка...";
 
-            const username = document.getElementById('username').value;
-            let contactVal = document.getElementById('contact').value;
-            
-            // Если это стример, соберём подробности в один контакт для удобства базы данных
+            const username = document.getElementById('username').value.trim();
+            let contactVal = document.getElementById('contact').value.trim();
+
+            // Добавим @, если человек забыл
+            if (/^[A-Za-z0-9_]{5,32}$/.test(contactVal)) contactVal = '@' + contactVal;
+
+            const row = {
+                username: username,
+                contact: contactVal,
+                status: role === 'streamer' ? 'streamer_pending' : 'player_pending'
+            };
+
             if (role === 'streamer') {
-                const plat = document.getElementById('platform').value;
-                const pNick = document.getElementById('platform_nick').value;
-                const strong = document.getElementById('strengths').value;
-                const avatar = document.getElementById('avatar_desc').value;
-                const agree = document.getElementById('agreement').value;
-                
-                contactVal = `Платформа: ${plat}, Ник: ${pNick} | Сильные/слабые: ${strong} | Персонаж: ${avatar} | Согласен ответить: ${agree}`;
+                row.platform = document.getElementById('platform').value.trim();
+                row.platform_nick = document.getElementById('platform_nick').value.trim();
+                row.strengths = document.getElementById('strengths').value.trim();
+                row.avatar_desc = document.getElementById('avatar_desc').value.trim();
+                row.agreement = document.getElementById('agreement').value;
             }
 
-            const { data, error } = await client
-                .from('applications')
-                .insert([{ 
-                    username: username, 
-                    contact: contactVal, 
-                    status: role === 'streamer' ? 'streamer_pending' : 'player_pending' 
-                }]);
+            const { error } = await client.from('applications').insert([row]);
 
             if (error) {
                 console.error(error);
