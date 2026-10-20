@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Подача заявки — Пятая стадия</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        h1 { color: #ff4757; }
+        input, select {
+            width: 90%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #333;
+            background: #2b2b2b;
+            color: #fff;
+            font-size: 16px;
+        }
+        button {
+            width: 95%;
+            padding: 12px;
+            margin-top: 15px;
+            background-color: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #888;
+            text-decoration: none;
+        }
+        .back-link:hover { color: #fff; }
+        #message { margin-top: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Подача заявки</h1>
+        <p>Выбери роль и оставь контакты для участия в проекте:</p>
+
+        <form id="appForm">
+            <input type="text" id="username" placeholder="Твоё имя / Никнейм" required><br>
+            <input type="text" id="contact" placeholder="Твой Telegram / Discord / Ссылка на канал" required><br>
+            <select id="role">
+                <option value="player">Игрок / Участник</option>
+                <option value="streamer">Стример</option>
+                <option value="moderator">Модератор</option>
+            </select><br>
+            <button type="submit">Отправить заявку</button>
+        </form>
+
+        <div id="message"></div>
+        <a href="index.html" class="back-link">← Вернуться на главную</a>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://lochgdhgcpqpmbcgmdvy.supabase.co"; 
+        const SUPABASE_KEY = "sb_publishable_G0sF7IL1XrCqf4Wad0bjCQ_1hC0CWPw"; 
+
+        const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const form = document.getElementById('appForm');
+        const messageDiv = document.getElementById('message');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            messageDiv.style.color = "yellow";
+            messageDiv.innerText = "Отправка...";
+
+            const username = document.getElementById('username').value;
+            const contact = document.getElementById('contact').value;
+            const role = document.getElementById('role').value;
+
+            const { data, error } = await client
+                .from('applications')
+                .insert([{ username: username, contact: contact, status: role }]);
+
+            if (error) {
+                console.error(error);
+                messageDiv.style.color = "#ff4757";
+                messageDiv.innerText = "Ошибка: " + error.message;
+            } else {
+                messageDiv.style.color = "#2ed573";
+                messageDiv.innerText = "Заявка успешно отправлена!";
+                form.reset();
+            }
+        });
+    </script>
+</body>
+</html>
