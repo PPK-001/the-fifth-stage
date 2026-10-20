@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Пятая стадия — Презентация игры</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -20,7 +21,7 @@
         }
         h1 { font-size: 3em; margin-bottom: 10px; }
         p.subtitle { font-size: 1.2em; color: #eee; max-width: 600px; margin: 0 auto 30px; }
-        
+
         .container {
             max-width: 700px;
             margin: 0 auto;
@@ -45,6 +46,7 @@
         .btn-primary { background-color: #ff4757; }
         .btn-streamer { background-color: #70a1ff; }
         .btn-wish { background-color: #2ed573; width: 90%; font-size: 20px; }
+        .btn-wish:disabled { opacity: 0.6; cursor: default; transform: none; }
 
         /* Счётчик */
         .counter-box {
@@ -74,12 +76,12 @@
         <!-- Счётчик желающих -->
         <div class="counter-box">
             <p>Уже ждут выход игры:</p>
-            <div class="counter-number" id="wishCount">1</div>
+            <div class="counter-number" id="wishCount">...</div>
             <br>
             <button class="btn btn-wish" id="wishBtn">❤️ Я желаю видеть эту игру и буду рад в неё поиграть!</button>
         </div>
 
-       <!-- Кнопки перехода на вторую страницу -->
+        <!-- Кнопки перехода на вторую страницу -->
         <h2>Принять участие в проекте</h2>
         <a href="apply.html?role=player" class="btn btn-primary">Подать заявку на участие</a>
         <a href="apply.html?role=streamer" class="btn btn-streamer">Присоединиться как стример</a>
@@ -87,22 +89,49 @@
     </div>
 
     <script>
-        // Простая локальная логика счётчика +1
-        let count = localStorage.getItem('game_wishes') || 1;
+        const SUPABASE_URL = "https://lochgdhgcpqpmbcgmdvy.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_G0sF7IL1XrCqf4Wad0bjCQ_1hCOCWPw";
+        const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
         const countElement = document.getElementById('wishCount');
         const wishBtn = document.getElementById('wishBtn');
 
-        countElement.innerText = count;
-
-        wishBtn.addEventListener('click', () => {
-            if (!localStorage.getItem('voted')) {
-                count++;
-                localStorage.setItem('game_wishes', count);
-                localStorage.setItem('voted', 'true');
-                countElement.innerText = count;
-                alert('Спасибо за поддержку проекта!');
+        // Загружаем общее число из базы
+        async function loadCount() {
+            const { data, error } = await client
+                .from('wishes')
+                .select('count')
+                .eq('id', 1)
+                .single();
+            if (error) {
+                console.error(error);
+                countElement.innerText = "?";
             } else {
+                countElement.innerText = data.count;
+            }
+        }
+        loadCount();
+
+        // Если уже голосовал в этом браузере, блокируем кнопку
+        if (localStorage.getItem('voted')) {
+            wishBtn.disabled = true;
+        }
+
+        wishBtn.addEventListener('click', async () => {
+            if (localStorage.getItem('voted')) {
                 alert('Вы уже отдали свой голос за игру!');
+                return;
+            }
+            wishBtn.disabled = true;
+            const { data, error } = await client.rpc('add_wish');
+            if (error) {
+                console.error(error);
+                alert('Не получилось отправить голос, попробуйте позже.');
+                wishBtn.disabled = false;
+            } else {
+                localStorage.setItem('voted', 'true');
+                countElement.innerText = data;
+                alert('Спасибо за поддержку проекта!');
             }
         });
     </script>
