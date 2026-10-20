@@ -66,9 +66,10 @@
 
     <script>
         const SUPABASE_URL = "https://lochgdhgcpqpmbcgmdvy.supabase.co"; 
-        const SUPABASE_KEY = "sb_publishable_G0sF7IL1XrCqf4Wad0bjCQ_1hCOCWPw"; 
+        
+        // Вставьте сюда ваш Legacy anon ключ (начинающийся с "eyJ...") из панели Supabase:
+        const SUPABASE_KEY = "ВАШ_LEGACY_ANON_КЛЮЧ_НАЧИНАЮЩИЙСЯ_С_EYJ"; 
 
-        // Используем client вместо supabase, чтобы избежать конфликтов
         const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const form = document.getElementById('appForm');
