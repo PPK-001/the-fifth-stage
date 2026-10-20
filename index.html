@@ -61,6 +61,22 @@
             color: #2ed573;
             font-weight: bold;
         }
+
+        /* Новости */
+        .post-card { background: #1e1e1e; border: 2px solid #333; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: left; }
+        .post-card h3 { margin: 0 0 5px; color: #ff4757; }
+        .post-card .date { font-size: 12px; color: #888; margin-bottom: 10px; }
+        .post-card img { max-width: 100%; border-radius: 8px; margin-top: 10px; }
+        .post-card p { white-space: pre-wrap; line-height: 1.5; color: #ddd; }
+        .download-btn { display: inline-block; margin-top: 12px; padding: 10px 18px; background: #2ed573; color: #fff; font-weight: bold; border-radius: 6px; text-decoration: none; }
+        .download-btn:hover { background: #26b862; }
+
+        /* Участники */
+        .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; margin: 20px 0 40px; }
+        .member { background: #1e1e1e; border: 2px solid #333; border-radius: 10px; overflow: hidden; }
+        .member img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; }
+        .member .name { font-weight: bold; color: #70a1ff; margin: 10px 10px 2px; }
+        .member .caption { font-size: 13px; color: #bbb; margin: 0 10px 12px; }
     </style>
 </head>
 <body>
@@ -80,6 +96,14 @@
             <br>
             <button class="btn btn-wish" id="wishBtn">❤️ Я желаю видеть эту игру и буду рад в неё поиграть!</button>
         </div>
+
+        <!-- Новости и обновления -->
+        <h2>Новости и обновления</h2>
+        <div id="posts"></div>
+
+        <!-- Участники проекта -->
+        <h2>Участники проекта</h2>
+        <div class="gallery" id="members"></div>
 
         <!-- Кнопки перехода на вторую страницу -->
         <h2>Принять участие в проекте</h2>
@@ -134,6 +158,89 @@
                 alert('Спасибо за поддержку проекта!');
             }
         });
+
+        // Загрузка новостей
+        async function loadPosts() {
+            const box = document.getElementById('posts');
+            const { data, error } = await client
+                .from('posts')
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (error) { console.error(error); return; }
+            if (!data.length) { box.innerText = "Скоро здесь появятся новости."; return; }
+            data.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'post-card';
+
+                const h = document.createElement('h3');
+                h.textContent = p.title;
+                const d = document.createElement('div');
+                d.className = 'date';
+                d.textContent = new Date(p.created_at).toLocaleDateString('ru-RU');
+                card.append(h, d);
+
+                if (p.body) {
+                    const t = document.createElement('p');
+                    t.textContent = p.body;
+                    card.appendChild(t);
+                }
+                if (p.image_url) {
+                    const img = document.createElement('img');
+                    img.src = p.image_url;
+                    card.appendChild(img);
+                }
+                if (p.file_url) {
+                    const a = document.createElement('a');
+                    a.href = p.file_url;
+                    a.className = 'download-btn';
+                    a.textContent = '⬇ Скачать: ' + (p.file_name || 'файл');
+                    card.appendChild(a);
+                }
+                box.appendChild(card);
+            });
+        }
+        loadPosts();
+
+        // Загрузка участников
+        async function loadMembers() {
+            const box = document.getElementById('members');
+            const { data, error } = await client
+                .from('participants')
+                .select('*')
+                .order('created_at', { ascending: true });
+            if (error) { console.error(error); return; }
+            if (!data.length) {
+                box.style.display = 'block';
+                box.innerText = "Скоро здесь появятся участники.";
+                return;
+            }
+            data.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'member';
+
+                const img = document.createElement('img');
+                img.src = p.image_url;
+                img.alt = p.name;
+
+                const n = document.createElement('div');
+                n.className = 'name';
+                n.textContent = p.name;
+
+                card.append(img, n);
+
+                if (p.caption) {
+                    const c = document.createElement('div');
+                    c.className = 'caption';
+                    c.textContent = p.caption;
+                    card.appendChild(c);
+                }
+                box.appendChild(card);
+            });
+        }
+        loadMembers();
     </script>
 </body>
 </html>
+
+        <h3>Добавленные участники</h3>
+        <div
