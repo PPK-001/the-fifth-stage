@@ -3,98 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Пятая стадия — Подача заявок</title>
-    <!-- Подключаем библиотеку Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>Пятая стадия — Презентация игры</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             background-color: #121212;
             color: #ffffff;
+            margin: 0;
+            padding: 0;
             text-align: center;
-            padding: 40px 20px;
         }
+        /* Баннер */
+        .banner {
+            background: linear-gradient(180deg, #ff4757 0%, #121212 100%);
+            padding: 80px 20px 40px;
+        }
+        h1 { font-size: 3em; margin-bottom: 10px; }
+        p.subtitle { font-size: 1.2em; color: #eee; max-width: 600px; margin: 0 auto 30px; }
+        
         .container {
-            max-width: 500px;
+            max-width: 700px;
             margin: 0 auto;
-            background: #1e1e1e;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            padding: 20px;
         }
-        h1 { color: #ff4757; }
-        input {
-            width: 90%;
-            padding: 12px;
-            margin: 10px 0;
-            border-radius: 5px;
-            border: 1px solid #333;
-            background: #2b2b2b;
-            color: #fff;
-            font-size: 16px;
-        }
-        button {
-            width: 95%;
-            padding: 12px;
-            margin-top: 15px;
-            background-color: #ff4757;
-            color: white;
-            border: none;
-            border-radius: 5px;
+
+        /* Кнопки действий */
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            margin: 10px;
             font-size: 18px;
             font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 8px;
             cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.2s, background 0.2s;
         }
-        button:hover { background-color: #ff6b81; }
-        #message { margin-top: 15px; font-weight: bold; }
+        .btn:hover { transform: scale(1.05); }
+        .btn-primary { background-color: #ff4757; }
+        .btn-streamer { background-color: #70a1ff; }
+        .btn-wish { background-color: #2ed573; width: 90%; font-size: 20px; }
+
+        /* Счётчик */
+        .counter-box {
+            background: #1e1e1e;
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+        .counter-number {
+            font-size: 2.5em;
+            color: #2ed573;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
 
+    <!-- Шапка / Баннер -->
+    <div class="banner">
+        <h1>ПЯТАЯ СТАДИЯ</h1>
+        <p class="subtitle">Официальная презентация проекта. Узнай подробности игры и присоединяйся к сообществу!</p>
+    </div>
+
     <div class="container">
-        <h1>Пятая стадия</h1>
-        <p>Оставь заявку на участие или поддержку проекта!</p>
 
-        <form id="appForm">
-            <input type="text" id="username" placeholder="Твое имя / Никнейм" required><br>
-            <input type="text" id="contact" placeholder="Твой Telegram или Discord" required><br>
-            <button type="submit">Отправить заявку</button>
-        </form>
+        <!-- Счётчик желающих -->
+        <div class="counter-box">
+            <p>Уже ждут выход игры:</p>
+            <div class="counter-number" id="wishCount">1</div>
+            <br>
+            <button class="btn btn-wish" id="wishBtn">❤️ Я желаю видеть эту игру и буду рад в неё поиграть!</button>
+        </div>
 
-        <div id="message"></div>
+        <!-- Кнопки перехода на вторую страницу -->
+        <h2>Принять участие в проекте</h2>
+        <a href="apply.html" class="btn btn-primary">Подать заявку на участие</a>
+        <a href="apply.html" class="btn btn-streamer">Присоединиться как стример</a>
+
     </div>
 
     <script>
-        const SUPABASE_URL = "https://lochgdhgcpqpmbcgmdvy.supabase.co"; 
-        
-        // Вставьте сюда ваш Legacy anon ключ (начинающийся с "eyJ...") из панели Supabase:
-        const SUPABASE_KEY = "ВАШ_LEGACY_ANON_КЛЮЧ_НАЧИНАЮЩИЙСЯ_С_EYJ"; 
+        // Простая локальная логика счётчика +1
+        let count = localStorage.getItem('game_wishes') || 1;
+        const countElement = document.getElementById('wishCount');
+        const wishBtn = document.getElementById('wishBtn');
 
-        const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        countElement.innerText = count;
 
-        const form = document.getElementById('appForm');
-        const messageDiv = document.getElementById('message');
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            messageDiv.style.color = "yellow";
-            messageDiv.innerText = "Отправка...";
-
-            const username = document.getElementById('username').value;
-            const contact = document.getElementById('contact').value;
-
-            const { data, error } = await client
-                .from('applications')
-                .insert([{ username: username, contact: contact }]);
-
-            if (error) {
-                console.error(error);
-                messageDiv.style.color = "#ff4757";
-                messageDiv.innerText = "Ошибка при отправке: " + error.message;
+        wishBtn.addEventListener('click', () => {
+            if (!localStorage.getItem('voted')) {
+                count++;
+                localStorage.setItem('game_wishes', count);
+                localStorage.setItem('voted', 'true');
+                countElement.innerText = count;
+                alert('Спасибо за поддержку проекта!');
             } else {
-                messageDiv.style.color = "#2ed573";
-                messageDiv.innerText = "Заявка успешно отправлена! Ожидайте модерации.";
-                form.reset();
+                alert('Вы уже отдали свой голос за игру!');
             }
         });
     </script>
