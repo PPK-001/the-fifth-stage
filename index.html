@@ -65,11 +65,11 @@
     </div>
 
     <script>
-        // ВСТАВЬ СВОИ ДАННЫЕ СЮДА:
         const SUPABASE_URL = "https://lochgdhgcpqpmbcgmdvy.supabase.co"; 
-        const SUPABASE_KEY = "sb_publishable_G0sF7IL1XrCqf4Wad0bjCQ_1hCOCWPw"; 
+        const SUPABASE_KEY = "sb_publishable_G0sF7IL1XrCqf4Wad0bjCQ_1hC0CWPw"; 
 
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // Используем client вместо supabase, чтобы избежать конфликтов
+        const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const form = document.getElementById('appForm');
         const messageDiv = document.getElementById('message');
@@ -82,7 +82,7 @@
             const username = document.getElementById('username').value;
             const contact = document.getElementById('contact').value;
 
-            const { data, error } = await supabase
+            const { data, error } = await client
                 .from('applications')
                 .insert([{ username: username, contact: contact }]);
 
