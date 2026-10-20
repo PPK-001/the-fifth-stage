@@ -14,7 +14,6 @@
             padding: 0;
             text-align: center;
         }
-        /* Баннер */
         .banner {
             background: linear-gradient(180deg, #ff4757 0%, #121212 100%);
             padding: 80px 20px 40px;
@@ -28,7 +27,6 @@
             padding: 20px;
         }
 
-        /* Кнопки действий */
         .btn {
             display: inline-block;
             padding: 15px 30px;
@@ -45,10 +43,10 @@
         .btn:hover { transform: scale(1.05); }
         .btn-primary { background-color: #ff4757; }
         .btn-streamer { background-color: #70a1ff; }
+        .btn-members { background-color: #a55eea; }
         .btn-wish { background-color: #2ed573; width: 90%; font-size: 20px; }
         .btn-wish:disabled { opacity: 0.6; cursor: default; transform: none; }
 
-        /* Счётчик */
         .counter-box {
             background: #1e1e1e;
             border: 2px solid #333;
@@ -62,7 +60,6 @@
             font-weight: bold;
         }
 
-        /* Новости */
         .post-card { background: #1e1e1e; border: 2px solid #333; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: left; }
         .post-card h3 { margin: 0 0 5px; color: #ff4757; }
         .post-card .date { font-size: 12px; color: #888; margin-bottom: 10px; }
@@ -70,18 +67,10 @@
         .post-card p { white-space: pre-wrap; line-height: 1.5; color: #ddd; }
         .download-btn { display: inline-block; margin-top: 12px; padding: 10px 18px; background: #2ed573; color: #fff; font-weight: bold; border-radius: 6px; text-decoration: none; }
         .download-btn:hover { background: #26b862; }
-
-        /* Участники */
-        .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; margin: 20px 0 40px; }
-        .member { background: #1e1e1e; border: 2px solid #333; border-radius: 10px; overflow: hidden; }
-        .member img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; }
-        .member .name { font-weight: bold; color: #70a1ff; margin: 10px 10px 2px; }
-        .member .caption { font-size: 13px; color: #bbb; margin: 0 10px 12px; }
     </style>
 </head>
 <body>
 
-    <!-- Шапка / Баннер -->
     <div class="banner">
         <h1>ПЯТАЯ СТАДИЯ</h1>
         <p class="subtitle">Официальная презентация проекта. Узнай подробности игры и присоединяйся к сообществу!</p>
@@ -89,7 +78,6 @@
 
     <div class="container">
 
-        <!-- Счётчик желающих -->
         <div class="counter-box">
             <p>Уже ждут выход игры:</p>
             <div class="counter-number" id="wishCount">...</div>
@@ -97,15 +85,14 @@
             <button class="btn btn-wish" id="wishBtn">❤️ Я желаю видеть эту игру и буду рад в неё поиграть!</button>
         </div>
 
+        <!-- Участники -->
+        <a href="participants.html" class="btn btn-members">👥 Участники проекта</a>
+
         <!-- Новости и обновления -->
         <h2>Новости и обновления</h2>
         <div id="posts"></div>
 
-        <!-- Участники проекта -->
-        <h2>Участники проекта</h2>
-        <div class="gallery" id="members"></div>
-
-        <!-- Кнопки перехода на вторую страницу -->
+        <!-- Заявки -->
         <h2>Принять участие в проекте</h2>
         <a href="apply.html?role=player" class="btn btn-primary">Подать заявку на участие</a>
         <a href="apply.html?role=streamer" class="btn btn-streamer">Присоединиться как стример</a>
@@ -120,7 +107,6 @@
         const countElement = document.getElementById('wishCount');
         const wishBtn = document.getElementById('wishBtn');
 
-        // Загружаем общее число из базы
         async function loadCount() {
             const { data, error } = await client
                 .from('wishes')
@@ -136,7 +122,6 @@
         }
         loadCount();
 
-        // Если уже голосовал в этом браузере, блокируем кнопку
         if (localStorage.getItem('voted')) {
             wishBtn.disabled = true;
         }
@@ -159,7 +144,6 @@
             }
         });
 
-        // Загрузка новостей
         async function loadPosts() {
             const box = document.getElementById('posts');
             const { data, error } = await client
@@ -200,47 +184,6 @@
             });
         }
         loadPosts();
-
-        // Загрузка участников
-        async function loadMembers() {
-            const box = document.getElementById('members');
-            const { data, error } = await client
-                .from('participants')
-                .select('*')
-                .order('created_at', { ascending: true });
-            if (error) { console.error(error); return; }
-            if (!data.length) {
-                box.style.display = 'block';
-                box.innerText = "Скоро здесь появятся участники.";
-                return;
-            }
-            data.forEach(p => {
-                const card = document.createElement('div');
-                card.className = 'member';
-
-                const img = document.createElement('img');
-                img.src = p.image_url;
-                img.alt = p.name;
-
-                const n = document.createElement('div');
-                n.className = 'name';
-                n.textContent = p.name;
-
-                card.append(img, n);
-
-                if (p.caption) {
-                    const c = document.createElement('div');
-                    c.className = 'caption';
-                    c.textContent = p.caption;
-                    card.appendChild(c);
-                }
-                box.appendChild(card);
-            });
-        }
-        loadMembers();
     </script>
 </body>
 </html>
-
-        <h3>Добавленные участники</h3>
-        <div
