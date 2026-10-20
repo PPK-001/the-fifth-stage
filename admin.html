@@ -16,6 +16,7 @@
         textarea { height: 120px; resize: vertical; }
         button { width: 100%; padding: 14px; margin-top: 20px; background: #ff4757; color: #fff; border: none; border-radius: 5px; font-size: 17px; font-weight: bold; cursor: pointer; }
         button:hover { background: #ff6b81; }
+        button:disabled { opacity: 0.5; cursor: wait; }
         .small-btn { width: auto; padding: 6px 12px; margin: 0; font-size: 13px; background: #444; }
         #msg { margin-top: 15px; font-weight: bold; text-align: center; }
         .post { background: #252525; padding: 12px; border-radius: 6px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
@@ -48,9 +49,9 @@
             <textarea id="body"></textarea>
             <label>Картинка (необязательно):</label>
             <input type="file" id="image" accept="image/*">
-            <label>Файл для скачивания (необязательно):</label>
+            <label>Файл для скачивания (необязательно, до 50 МБ):</label>
             <input type="file" id="file">
-            <button type="submit">Опубликовать новость</button>
+            <button type="submit" id="postBtn">Опубликовать новость</button>
         </form>
 
         <h3>Опубликованные новости</h3>
@@ -65,7 +66,7 @@
             <input type="text" id="partCaption" placeholder="Например: озвучка, тестирование, арт...">
             <label>Изображение:</label>
             <input type="file" id="partImage" accept="image/*" required>
-            <button type="submit">Добавить участника</button>
+            <button type="submit" id="partBtn">Добавить участника</button>
         </form>
 
         <h3>Добавленные участники</h3>
@@ -83,15 +84,33 @@
     const SUPABASE_KEY = "sb_publishable_G0sF7IL1XrCqf4Wad0bjCQ_1hCOCWPw";
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    const MAX_FILE_MB = 50;
+
     const loginForm = document.getElementById('loginForm');
     const adminBox = document.getElementById('adminBox');
     const postForm = document.getElementById('postForm');
     const postList = document.getElementById('postList');
     const partForm = document.getElementById('partForm');
     const partList = document.getElementById('partList');
+    const postBtn = document.getElementById('postBtn');
+    const partBtn = document.getElementById('partBtn');
     const msg = document.getElementById('msg');
 
     function setMsg(text, color) { msg.style.color = color; msg.innerText = text; }
+
+    // Достаём путь файла в хранилище из публичной ссылки
+    function pathFromUrl(url, bucket) {
+        if (!url) return null;
+        const parts = url.split('/' + bucket + '/');
+        if (parts.length < 2) return null;
+        return decodeURIComponent(parts[1].split('?')[0]);
+    }
+
+    // Удаляем файл из хранилища (если не получилось, не страшно)
+    async function removeFile(bucket, url) {
+        const path = pathFromUrl(url, bucket);
+        if (path) await client.storage.from(bucket).remove([path]);
+    }
 
     function showAdmin(isIn) {
         loginForm.classList.toggle('hidden', isIn);
@@ -123,27 +142,35 @@
     // ---------- Новости ----------
     postForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        const img = document.getElementById('image').files[0];
+        const file = document.getElementById('file').files[0];
+
+        if (file && file.size > MAX_FILE_MB * 1024 * 1024) {
+            setMsg("Файл больше " + MAX_FILE_MB + " МБ, он не загрузится", "#ff4757");
+            return;
+        }
+
+        postBtn.disabled = true;
         setMsg("Загрузка...", "yellow");
 
         let imageUrl = null;
         let fileUrl = null;
         let fileName = null;
 
-        const img = document.getElementById('image').files[0];
         if (img) {
             const ext = img.name.split('.').pop().toLowerCase();
             const path = Date.now() + "." + ext;
             const { error: upErr } = await client.storage.from('post-images').upload(path, img);
-            if (upErr) { setMsg("Ошибка загрузки картинки: " + upErr.message, "#ff4757"); return; }
+            if (upErr) { setMsg("Ошибка загрузки картинки: " + upErr.message, "#ff4757"); postBtn.disabled = false; return; }
             imageUrl = client.storage.from('post-images').getPublicUrl(path).data.publicUrl;
         }
 
-        const file = document.getElementById('file').files[0];
         if (file) {
             const ext = file.name.includes('.') ? '.' + file.name.split('.').pop().toLowerCase() : '';
             const path = Date.now() + ext;
             const { error: fErr } = await client.storage.from('post-files').upload(path, file);
-            if (fErr) { setMsg("Ошибка загрузки файла: " + fErr.message, "#ff4757"); return; }
+            if (fErr) { setMsg("Ошибка загрузки файла: " + fErr.message, "#ff4757"); postBtn.disabled = false; return; }
             fileName = file.name;
             fileUrl = client.storage.from('post-files').getPublicUrl(path, { download: file.name }).data.publicUrl;
         }
@@ -156,14 +183,15 @@
             file_name: fileName
         }]);
 
-        if (error) { setMsg("Ошибка: " + error.message, "#ff4757"); return; }
+        postBtn.disabled = false;
+        if (error) { setMsg("Ошибка: " + error.message + " (если про сессию, выйди и войди заново)", "#ff4757"); return; }
         setMsg("Опубликовано!", "#2ed573");
         postForm.reset();
         loadPosts();
     });
 
     async function loadPosts() {
-        const { data, error } = await client.from('posts').select('id,title,created_at').order('created_at', { ascending: false });
+        const { data, error } = await client.from('posts').select('id,title,image_url,file_url').order('created_at', { ascending: false });
         postList.innerHTML = "";
         if (error) { setMsg("Ошибка: " + error.message, "#ff4757"); return; }
         data.forEach(p => {
@@ -176,7 +204,12 @@
             del.textContent = 'Удалить';
             del.onclick = async () => {
                 if (!confirm('Удалить «' + p.title + '»?')) return;
-                await client.from('posts').delete().eq('id', p.id);
+                del.disabled = true;
+                const { error: dErr } = await client.from('posts').delete().eq('id', p.id);
+                if (dErr) { setMsg("Не удалось удалить: " + dErr.message, "#ff4757"); del.disabled = false; return; }
+                await removeFile('post-images', p.image_url);
+                await removeFile('post-files', p.file_url);
+                setMsg("Удалено", "#2ed573");
                 loadPosts();
             };
             row.append(span, del);
@@ -187,15 +220,17 @@
     // ---------- Участники ----------
     partForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        setMsg("Загрузка...", "yellow");
 
         const img = document.getElementById('partImage').files[0];
         if (!img) { setMsg("Выбери изображение", "#ff4757"); return; }
 
+        partBtn.disabled = true;
+        setMsg("Загрузка...", "yellow");
+
         const ext = img.name.split('.').pop().toLowerCase();
         const path = "participant-" + Date.now() + "." + ext;
         const { error: upErr } = await client.storage.from('post-images').upload(path, img);
-        if (upErr) { setMsg("Ошибка загрузки картинки: " + upErr.message, "#ff4757"); return; }
+        if (upErr) { setMsg("Ошибка загрузки картинки: " + upErr.message, "#ff4757"); partBtn.disabled = false; return; }
         const imageUrl = client.storage.from('post-images').getPublicUrl(path).data.publicUrl;
 
         const { error } = await client.from('participants').insert([{
@@ -204,6 +239,7 @@
             image_url: imageUrl
         }]);
 
+        partBtn.disabled = false;
         if (error) { setMsg("Ошибка: " + error.message, "#ff4757"); return; }
         setMsg("Участник добавлен!", "#2ed573");
         partForm.reset();
@@ -231,7 +267,11 @@
             del.textContent = 'Удалить';
             del.onclick = async () => {
                 if (!confirm('Удалить «' + p.name + '»?')) return;
-                await client.from('participants').delete().eq('id', p.id);
+                del.disabled = true;
+                const { error: dErr } = await client.from('participants').delete().eq('id', p.id);
+                if (dErr) { setMsg("Не удалось удалить: " + dErr.message, "#ff4757"); del.disabled = false; return; }
+                await removeFile('post-images', p.image_url);
+                setMsg("Удалено", "#2ed573");
                 loadParticipants();
             };
             row.append(info, del);
