@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админка — Пятая стадия</title>
+    <meta name="robots" content="noindex">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background: #121212; color: #fff; padding: 40px 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: #1e1e1e; padding: 30px; border-radius: 10px; }
+        h1 { color: #ff4757; text-align: center; }
+        label { display: block; margin-top: 15px; font-size: 14px; color: #bbb; }
+        input, textarea { width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #333; background: #2b2b2b; color: #fff; font-size: 15px; box-sizing: border-box; }
+        textarea { height: 120px; resize: vertical; }
+        button { width: 100%; padding: 14px; margin-top: 20px; background: #ff4757; color: #fff; border: none; border-radius: 5px; font-size: 17px; font-weight: bold; cursor: pointer; }
+        button:hover { background: #ff6b81; }
+        .small-btn { width: auto; padding: 6px 12px; margin: 0; font-size: 13px; background: #444; }
+        #msg { margin-top: 15px; font-weight: bold; text-align: center; }
+        .post { background: #252525; padding: 12px; border-radius: 6px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        a { color: #888; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Админка</h1>
+
+    <!-- Вход -->
+    <form id="loginForm">
+        <label>Email:</label>
+        <input type="email" id="email" required>
+        <label>Пароль:</label>
+        <input type="password" id="password" required>
+        <button type="submit">Войти</button>
+    </form>
+
+    <!-- Загрузка -->
+    <div id="adminBox" class="hidden">
+        <form id="postForm">
+            <label>Заголовок:</label>
+            <input type="text" id="title" required>
+            <label>Текст:</label>
+            <textarea id="body"></textarea>
+            <label>Картинка (необязательно):</label>
+            <input type="file" id="image" accept="image/*">
+            <label>Файл для скачивания (необязательно):</label>
+            <input type="file" id="file">
+            <button type="submit">Опубликовать</button>
+        </form>
+
+        <h3>Опубликованное</h3>
+        <div id="postList"></div>
+
+        <button class="small-btn" id="logoutBtn" style="margin-top:20px">Выйти</button>
+    </div>
+
+    <div id="msg"></div>
+    <p style="text-align:center"><a href="index.html">← На главную</a></p>
+</div>
+
+<script>
+    const SUPABASE_URL = "https://lochgdhgcpqpmbcgmdvy.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_G0sF7IL1XrCqf4Wad0bjCQ_1hCOCWPw";
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const loginForm = document.getElementById('loginForm');
+    const adminBox = document.getElementById('adminBox');
+    const postForm = document.getElementById('postForm');
+    const postList = document.getElementById('postList');
+    const msg = document.getElementById('msg');
+
+    function setMsg(text, color) { msg.style.color = color; msg.innerText = text; }
+
+    function showAdmin(isIn) {
+        loginForm.classList.toggle('hidden', isIn);
+        adminBox.classList.toggle('hidden', !isIn);
+        if (isIn) loadPosts();
+    }
+
+    async function init() {
+        const { data } = await client.auth.getSession();
+        showAdmin(!!data.session);
+    }
+    init();
+
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const { error } = await client.auth.signInWithPassword({
+            email: document.getElementById('email').value.trim(),
+            password: document.getElementById('password').value
+        });
+        if (error) { setMsg("Ошибка входа: " + error.message, "#ff4757"); }
+        else { setMsg("", "#fff"); showAdmin(true); }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+        await client.auth.signOut();
+        showAdmin(false);
+    });
+
+    postForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        setMsg("Загрузка...", "yellow");
+
+        let imageUrl = null;
+        let fileUrl = null;
+        let fileName = null;
+
+        const img = document.getElementById('image').files[0];
+        if (img) {
+            const ext = img.name.split('.').pop().toLowerCase();
+            const path = Date.now() + "." + ext;
+            const { error: upErr } = await client.storage.from('post-images').upload(path, img);
+            if (upErr) { setMsg("Ошибка загрузки картинки: " + upErr.message, "#ff4757"); return; }
+            imageUrl = client.storage.from('post-images').getPublicUrl(path).data.publicUrl;
+        }
+
+        const file = document.getElementById('file').files[0];
+        if (file) {
+            const ext = file.name.includes('.') ? '.' + file.name.split('.').pop().toLowerCase() : '';
+            const path = Date.now() + ext;
+            const { error: fErr } = await client.storage.from('post-files').upload(path, file);
+            if (fErr) { setMsg("Ошибка загрузки файла: " + fErr.message, "#ff4757"); return; }
+            fileName = file.name;
+            fileUrl = client.storage.from('post-files').getPublicUrl(path, { download: file.name }).data.publicUrl;
+        }
+
+        const { error } = await client.from('posts').insert([{
+            title: document.getElementById('title').value.trim(),
+            body: document.getElementById('body').value.trim(),
+            image_url: imageUrl,
+            file_url: fileUrl,
+            file_name: fileName
+        }]);
+
+        if (error) { setMsg("Ошибка: " + error.message, "#ff4757"); return; }
+        setMsg("Опубликовано!", "#2ed573");
+        postForm.reset();
+        loadPosts();
+    });
+
+    async function loadPosts() {
+        const { data, error } = await client.from('posts').select('id,title,created_at').order('created_at', { ascending: false });
+        postList.innerHTML = "";
+        if (error) { setMsg("Ошибка: " + error.message, "#ff4757"); return; }
+        data.forEach(p => {
+            const row = document.createElement('div');
+            row.className = 'post';
+            const span = document.createElement('span');
+            span.textContent = p.title;
+            const del = document.createElement('button');
+            del.className = 'small-btn';
+            del.textContent = 'Удалить';
+            del.onclick = async () => {
+                if (!confirm('Удалить «' + p.title + '»?')) return;
+                await client.from('posts').delete().eq('id', p.id);
+                loadPosts();
+            };
+            row.append(span, del);
+            postList.appendChild(row);
+        });
+    }
+</script>
+</body>
+</html>
