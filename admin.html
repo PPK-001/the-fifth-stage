@@ -88,7 +88,7 @@
                 <textarea id="partLore" placeholder="История, характер, роль в мире..."></textarea>
             </div>
  
-            <label>Подпись (необязательно):</label>
+            <label>Дополнительная подпись / роль:</label>
             <input type="text" id="partCaption" placeholder="Например: озвучка, тестирование, арт...">
             <label>Изображение:</label>
             <input type="file" id="partImage" accept="image/*" required>
@@ -266,16 +266,21 @@
         const ext = img.name.split('.').pop().toLowerCase();
         const path = "participant-" + Date.now() + "." + ext;
         const { error: upErr } = await client.storage.from('post-images').upload(path, img);
-        if (upErr) { setMsg("Ошибка загрузки картинки: " + upErr.message, "#ff4757"); postBtn.disabled = false; return; }
+        if (upErr) { setMsg("Ошибка загрузки картинки: " + upErr.message, "#ff4757"); partBtn.disabled = false; return; }
         const imageUrl = client.storage.from('post-images').getPublicUrl(path).data.publicUrl;
  
         const role = partRole.value;
+        const selectedClass = document.getElementById('partClass').value;
+        const customCaption = document.getElementById('partCaption').value.trim();
+        
+        // Если игрок — запишем класс в поле caption, если НПС — лор/подпись
+        const finalCaption = role === 'player' ? 'Класс: ' + selectedClass + (customCaption ? ' (' + customCaption + ')' : '') : customCaption;
+
         const row = {
             name: document.getElementById('partName').value.trim(),
-            caption: document.getElementById('partCaption').value.trim(),
+            caption: finalCaption,
             image_url: imageUrl,
             role: role,
-            class_number: role === 'player' ? document.getElementById('partClass').value : null,
             lore: role === 'npc' ? document.getElementById('partLore').value.trim() : null
         };
  
@@ -305,14 +310,12 @@
             span.textContent = p.name;
             const badge = document.createElement('span');
             badge.className = 'badge';
-            // Если в базе колонка тоже class_number, читаем её безопасно:
-            const cls = p.class_number || p.class || '';
-            badge.textContent = p.role === 'npc' ? 'НПС' : ('Игрок' + (cls ? ' · ' + cls : ''));
+            badge.textContent = p.role === 'npc' ? 'НПС' : 'Игрок';
             span.appendChild(badge);
             info.append(img, span);
  
             const del = document.createElement('button');
-            del.classNameN = 'small-btn';
+            del.className = 'small-btn';
             del.textContent = 'Удалить';
             del.onclick = async () => {
                 if (!confirm('Удалить «' + p.name + '»?')) return;
