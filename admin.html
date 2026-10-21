@@ -12,7 +12,7 @@
         h1 { color: #ff4757; text-align: center; }
         h2 { color: #70a1ff; margin-top: 40px; border-top: 1px solid #333; padding-top: 20px; }
         label { display: block; margin-top: 15px; font-size: 14px; color: #bbb; }
-        input, textarea { width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #333; background: #2b2b2b; color: #fff; font-size: 15px; box-sizing: border-box; }
+        input, textarea, select { width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #333; background: #2b2b2b; color: #fff; font-size: 15px; box-sizing: border-box; }
         textarea { height: 120px; resize: vertical; }
         button { width: 100%; padding: 14px; margin-top: 20px; background: #ff4757; color: #fff; border: none; border-radius: 5px; font-size: 17px; font-weight: bold; cursor: pointer; }
         button:hover { background: #ff6b81; }
@@ -22,6 +22,7 @@
         .post { background: #252525; padding: 12px; border-radius: 6px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
         .post img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; }
         .post .info { flex: 1; display: flex; align-items: center; gap: 10px; }
+        .badge { font-size: 12px; color: #70a1ff; margin-left: 6px; }
         a { color: #888; }
         .hidden { display: none; }
     </style>
@@ -29,7 +30,7 @@
 <body>
 <div class="container">
     <h1>Админка</h1>
-
+ 
     <!-- Вход -->
     <form id="loginForm">
         <label>Email:</label>
@@ -38,9 +39,9 @@
         <input type="password" id="password" required>
         <button type="submit">Войти</button>
     </form>
-
+ 
     <div id="adminBox" class="hidden">
-
+ 
         <!-- Новости -->
         <form id="postForm">
             <label>Заголовок:</label>
@@ -53,39 +54,64 @@
             <input type="file" id="file">
             <button type="submit" id="postBtn">Опубликовать новость</button>
         </form>
-
+ 
         <h3>Опубликованные новости</h3>
         <div id="postList"></div>
-
+ 
         <!-- Участники -->
         <h2>Участники проекта</h2>
         <form id="partForm">
             <label>Имя / ник участника:</label>
             <input type="text" id="partName" required>
+ 
+            <label>Кем он будет в игре:</label>
+            <select id="partRole" required>
+                <option value="player">Игрок</option>
+                <option value="npc">НПС</option>
+            </select>
+ 
+            <!-- Только для Игрока -->
+            <div id="playerFields">
+                <label>Класс (порядковый номер, 1–5):</label>
+                <select id="partClass">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                </select>
+            </div>
+ 
+            <!-- Только для НПС -->
+            <div id="npcFields" class="hidden">
+                <label>Лор персонажа:</label>
+                <textarea id="partLore" placeholder="История, характер, роль в мире..."></textarea>
+            </div>
+ 
             <label>Подпись (необязательно):</label>
             <input type="text" id="partCaption" placeholder="Например: озвучка, тестирование, арт...">
             <label>Изображение:</label>
             <input type="file" id="partImage" accept="image/*" required>
             <button type="submit" id="partBtn">Добавить участника</button>
         </form>
-
+ 
         <h3>Добавленные участники</h3>
         <div id="partList"></div>
-
+ 
         <button class="small-btn" id="logoutBtn" style="margin-top:30px">Выйти</button>
     </div>
-
+ 
     <div id="msg"></div>
     <p style="text-align:center"><a href="index.html">← На главную</a></p>
 </div>
-
+ 
 <script>
     const SUPABASE_URL = "https://lochgdhgcpqpmbcgmdvy.supabase.co";
     const SUPABASE_KEY = "sb_publishable_G0sF7IL1XrCqf4Wad0bjCQ_1hCOCWPw";
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
+ 
     const MAX_FILE_MB = 50;
-
+ 
     const loginForm = document.getElementById('loginForm');
     const adminBox = document.getElementById('adminBox');
     const postForm = document.getElementById('postForm');
@@ -95,9 +121,22 @@
     const postBtn = document.getElementById('postBtn');
     const partBtn = document.getElementById('partBtn');
     const msg = document.getElementById('msg');
-
+ 
+    const partRole = document.getElementById('partRole');
+    const playerFields = document.getElementById('playerFields');
+    const npcFields = document.getElementById('npcFields');
+ 
     function setMsg(text, color) { msg.style.color = color; msg.innerText = text; }
-
+ 
+    // Показываем нужные поля в зависимости от роли
+    function updateRoleFields() {
+        const isPlayer = partRole.value === 'player';
+        playerFields.classList.toggle('hidden', !isPlayer);
+        npcFields.classList.toggle('hidden', isPlayer);
+    }
+    partRole.addEventListener('change', updateRoleFields);
+    updateRoleFields();
+ 
     // Достаём путь файла в хранилище из публичной ссылки
     function pathFromUrl(url, bucket) {
         if (!url) return null;
@@ -105,25 +144,25 @@
         if (parts.length < 2) return null;
         return decodeURIComponent(parts[1].split('?')[0]);
     }
-
+ 
     // Удаляем файл из хранилища (если не получилось, не страшно)
     async function removeFile(bucket, url) {
         const path = pathFromUrl(url, bucket);
         if (path) await client.storage.from(bucket).remove([path]);
     }
-
+ 
     function showAdmin(isIn) {
         loginForm.classList.toggle('hidden', isIn);
         adminBox.classList.toggle('hidden', !isIn);
         if (isIn) { loadPosts(); loadParticipants(); }
     }
-
+ 
     async function init() {
         const { data } = await client.auth.getSession();
         showAdmin(!!data.session);
     }
     init();
-
+ 
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const { error } = await client.auth.signInWithPassword({
@@ -133,31 +172,31 @@
         if (error) { setMsg("Ошибка входа: " + error.message, "#ff4757"); }
         else { setMsg("", "#fff"); showAdmin(true); }
     });
-
+ 
     document.getElementById('logoutBtn').addEventListener('click', async () => {
         await client.auth.signOut();
         showAdmin(false);
     });
-
+ 
     // ---------- Новости ----------
     postForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-
+ 
         const img = document.getElementById('image').files[0];
         const file = document.getElementById('file').files[0];
-
+ 
         if (file && file.size > MAX_FILE_MB * 1024 * 1024) {
             setMsg("Файл больше " + MAX_FILE_MB + " МБ, он не загрузится", "#ff4757");
             return;
         }
-
+ 
         postBtn.disabled = true;
         setMsg("Загрузка...", "yellow");
-
+ 
         let imageUrl = null;
         let fileUrl = null;
         let fileName = null;
-
+ 
         if (img) {
             const ext = img.name.split('.').pop().toLowerCase();
             const path = Date.now() + "." + ext;
@@ -165,7 +204,7 @@
             if (upErr) { setMsg("Ошибка загрузки картинки: " + upErr.message, "#ff4757"); postBtn.disabled = false; return; }
             imageUrl = client.storage.from('post-images').getPublicUrl(path).data.publicUrl;
         }
-
+ 
         if (file) {
             const ext = file.name.includes('.') ? '.' + file.name.split('.').pop().toLowerCase() : '';
             const path = Date.now() + ext;
@@ -174,7 +213,7 @@
             fileName = file.name;
             fileUrl = client.storage.from('post-files').getPublicUrl(path, { download: file.name }).data.publicUrl;
         }
-
+ 
         const { error } = await client.from('posts').insert([{
             title: document.getElementById('title').value.trim(),
             body: document.getElementById('body').value.trim(),
@@ -182,14 +221,14 @@
             file_url: fileUrl,
             file_name: fileName
         }]);
-
+ 
         postBtn.disabled = false;
         if (error) { setMsg("Ошибка: " + error.message + " (если про сессию, выйди и войди заново)", "#ff4757"); return; }
         setMsg("Опубликовано!", "#2ed573");
         postForm.reset();
         loadPosts();
     });
-
+ 
     async function loadPosts() {
         const { data, error } = await client.from('posts').select('id,title,image_url,file_url').order('created_at', { ascending: false });
         postList.innerHTML = "";
@@ -216,36 +255,43 @@
             postList.appendChild(row);
         });
     }
-
+ 
     // ---------- Участники ----------
     partForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-
+ 
         const img = document.getElementById('partImage').files[0];
         if (!img) { setMsg("Выбери изображение", "#ff4757"); return; }
-
+ 
         partBtn.disabled = true;
         setMsg("Загрузка...", "yellow");
-
+ 
         const ext = img.name.split('.').pop().toLowerCase();
         const path = "participant-" + Date.now() + "." + ext;
         const { error: upErr } = await client.storage.from('post-images').upload(path, img);
         if (upErr) { setMsg("Ошибка загрузки картинки: " + upErr.message, "#ff4757"); partBtn.disabled = false; return; }
         const imageUrl = client.storage.from('post-images').getPublicUrl(path).data.publicUrl;
-
-        const { error } = await client.from('participants').insert([{
+ 
+        const role = partRole.value;
+        const row = {
             name: document.getElementById('partName').value.trim(),
             caption: document.getElementById('partCaption').value.trim(),
-            image_url: imageUrl
-        }]);
-
+            image_url: imageUrl,
+            role: role,
+            class_number: role === 'player' ? Number(document.getElementById('partClass').value) : null,
+            lore: role === 'npc' ? document.getElementById('partLore').value.trim() : null
+        };
+ 
+        const { error } = await client.from('participants').insert([row]);
+ 
         partBtn.disabled = false;
         if (error) { setMsg("Ошибка: " + error.message, "#ff4757"); return; }
         setMsg("Участник добавлен!", "#2ed573");
         partForm.reset();
+        updateRoleFields();
         loadParticipants();
     });
-
+ 
     async function loadParticipants() {
         const { data, error } = await client.from('participants').select('*').order('created_at', { ascending: false });
         partList.innerHTML = "";
@@ -253,15 +299,19 @@
         data.forEach(p => {
             const row = document.createElement('div');
             row.className = 'post';
-
+ 
             const info = document.createElement('div');
             info.className = 'info';
             const img = document.createElement('img');
             img.src = p.image_url;
             const span = document.createElement('span');
             span.textContent = p.name;
+            const badge = document.createElement('span');
+            badge.className = 'badge';
+            badge.textContent = p.role === 'npc' ? 'НПС' : ('Игрок' + (p.class_number ? ' · класс ' + p.class_number : ''));
+            span.appendChild(badge);
             info.append(img, span);
-
+ 
             const del = document.createElement('button');
             del.className = 'small-btn';
             del.textContent = 'Удалить';
