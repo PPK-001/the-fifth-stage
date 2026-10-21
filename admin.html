@@ -70,17 +70,17 @@
                 <option value="npc">НПС</option>
             </select>
  
-           <!-- Только для Игрока -->
-<div id="playerFields">
-    <label>Класс персонажа:</label>
-    <select id="partClass">
-        <option value="Дуэлянт">Дуэлянт</option>
-        <option value="Инициатор">Инициатор</option>
-        <option value="Защитник">Защитник</option>
-        <option value="Специалист">Специалист</option>
-        <option value="Катализатор">Катализатор</option>
-    </select>
-</div>
+            <!-- Только для Игрока -->
+            <div id="playerFields">
+                <label>Класс персонажа:</label>
+                <select id="partClass">
+                    <option value="Дуэлянт">Дуэлянт</option>
+                    <option value="Инициатор">Инициатор</option>
+                    <option value="Защитник">Защитник</option>
+                    <option value="Специалист">Специалист</option>
+                    <option value="Катализатор">Катализатор</option>
+                </select>
+            </div>
  
             <!-- Только для НПС -->
             <div id="npcFields" class="hidden">
@@ -278,7 +278,7 @@
             caption: document.getElementById('partCaption').value.trim(),
             image_url: imageUrl,
             role: role,
-            class_number: role === 'player' ? Number(document.getElementById('partClass').value) : null,
+            class_number: role === 'player' ? document.getElementById('partClass').value : null,
             lore: role === 'npc' ? document.getElementById('partLore').value.trim() : null
         };
  
@@ -308,7 +308,7 @@
             span.textContent = p.name;
             const badge = document.createElement('span');
             badge.className = 'badge';
-            badge.textContent = p.role === 'npc' ? 'НПС' : ('Игрок' + (p.class_number ? ' · класс ' + p.class_number : ''));
+            badge.textContent = p.role === 'npc' ? 'НПС' : ('Игрок' + (p.class_number ? ' · ' + p.class_number : ''));
             span.appendChild(badge);
             info.append(img, span);
  
