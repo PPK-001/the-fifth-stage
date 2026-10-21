@@ -128,7 +128,6 @@
  
     function setMsg(text, color) { msg.style.color = color; msg.innerText = text; }
  
-    // Показываем нужные поля в зависимости от роли
     function updateRoleFields() {
         const isPlayer = partRole.value === 'player';
         playerFields.classList.toggle('hidden', !isPlayer);
@@ -137,7 +136,6 @@
     partRole.addEventListener('change', updateRoleFields);
     updateRoleFields();
  
-    // Достаём путь файла в хранилище из публичной ссылки
     function pathFromUrl(url, bucket) {
         if (!url) return null;
         const parts = url.split('/' + bucket + '/');
@@ -145,7 +143,6 @@
         return decodeURIComponent(parts[1].split('?')[0]);
     }
  
-    // Удаляем файл из хранилища (если не получилось, не страшно)
     async function removeFile(bucket, url) {
         const path = pathFromUrl(url, bucket);
         if (path) await client.storage.from(bucket).remove([path]);
@@ -223,7 +220,7 @@
         }]);
  
         postBtn.disabled = false;
-        if (error) { setMsg("Ошибка: " + error.message + " (если про сессию, выйди и войди заново)", "#ff4757"); return; }
+        if (error) { setMsg("Ошибка: " + error.message, "#ff4757"); return; }
         setMsg("Опубликовано!", "#2ed573");
         postForm.reset();
         loadPosts();
@@ -269,7 +266,7 @@
         const ext = img.name.split('.').pop().toLowerCase();
         const path = "participant-" + Date.now() + "." + ext;
         const { error: upErr } = await client.storage.from('post-images').upload(path, img);
-        if (upErr) { setMsg("Ошибка загрузки картинки: " + upErr.message, "#ff4757"); partBtn.disabled = false; return; }
+        if (upErr) { setMsg("Ошибка загрузки картинки: " + upErr.message, "#ff4757"); postBtn.disabled = false; return; }
         const imageUrl = client.storage.from('post-images').getPublicUrl(path).data.publicUrl;
  
         const role = partRole.value;
@@ -308,12 +305,14 @@
             span.textContent = p.name;
             const badge = document.createElement('span');
             badge.className = 'badge';
-            badge.textContent = p.role === 'npc' ? 'НПС' : ('Игрок' + (p.class_number ? ' · ' + p.class_number : ''));
+            // Если в базе колонка тоже class_number, читаем её безопасно:
+            const cls = p.class_number || p.class || '';
+            badge.textContent = p.role === 'npc' ? 'НПС' : ('Игрок' + (cls ? ' · ' + cls : ''));
             span.appendChild(badge);
             info.append(img, span);
  
             const del = document.createElement('button');
-            del.className = 'small-btn';
+            del.classNameN = 'small-btn';
             del.textContent = 'Удалить';
             del.onclick = async () => {
                 if (!confirm('Удалить «' + p.name + '»?')) return;
